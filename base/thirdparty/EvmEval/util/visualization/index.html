@@ -1,0 +1,228 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Brat Embedded annotation comparison</title>
+    <link rel="stylesheet" type="text/css" href="css/style-vis.css">
+    <link rel="stylesheet" type="text/css" href="http://code.jquery.com/ui/1.9.2/themes/base/jquery-ui.css">
+    <script type="text/javascript" src="js/head.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="js/visualize_setup.js"></script>
+    <script>
+        $(document).ready(
+            function () {
+                showClusterOnly = false;
+                fileChanged = true;
+                corpusChanged = true;
+                toggleCluster();
+                syncScroll();
+
+                // Control resize.
+                var resize = $("#left-panel");
+                var containerWidth = $("#container").width();
+
+                $(resize).resizable({
+                    handles: 'e',
+                    minWidth: 120,
+                    resize: function (event, ui) {
+                        var currentWidth = ui.size.width;
+
+                        // this accounts for padding in the panels +
+                        // borders, you could calculate this using jQuery
+                        var padding = 12;
+
+                        // this accounts for some lag in the ui.size value, if you take this away
+                        // you'll get some instable behaviour
+                        $(this).width(currentWidth);
+
+                        // set the content panel width
+                        var rightWidth = containerWidth - currentWidth - padding;
+                        $("#right-panel").width(rightWidth);
+
+                        // Remove content in the data holder and attributes.
+                        $('#left').empty();
+                        $('#right').empty();
+                        $('#left').removeClass("hasSVG");
+                        $('#right').removeClass("hasSVG");
+
+                        // Resize to fit the width.
+                        $("#left").children().width($("#left").width());
+                        $("#right").children().width($("#right").width());
+
+                        embed();
+                    },
+                });
+            }
+        );
+
+        var corpusList = loadJson("json/config/corpus_ids.json")
+        var annoConfig;
+        var fileList;
+    </script>
+
+    <style>
+        .container {
+            width: 100%;
+            /* Disable selection so it doesn't get annoying when dragging. */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .left-panel {
+            width: 49%;
+            float: left;
+        }
+
+        .right-panel {
+            width: 49%;
+            float: left;
+        }
+
+        .left {
+            float: left;
+            width: 49%;
+            overflow: hidden;
+        }
+
+        .right {
+            float: left;
+            width: 49%;
+            overflow: hidden;
+        }
+
+        .bar {
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .color-box {
+            width: 50px;
+            height: 20px;
+            display: inline-block;
+            position: relative;
+            left: 5px;
+            top: 5px;
+            margin-left: 8px;
+            margin-right: 8px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .clear {
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+
+<!-- load all the libraries upfront, which takes forever. -->
+<script type="text/javascript" src="js/brat_loader.js"></script>
+
+<div>
+    <p>Select a corpus first.</p>
+    <select name="corpus_selector" id="corpus_selector" size="10" style="width:100%" onchange="onCorpusChange()">
+    </select>
+</div>
+
+<div class="left">
+    <p>Select a document when Brat loaded...</p>
+    <select name="file_selector" id="selector" size="10" style="width:100%" onchange="onFileChange()">
+    </select>
+</div>
+<div class="right">
+    <h2>Legends</h2>
+
+    <div class="color-box" style="background-color: #ffccaa;"></div>
+    <b>Missing Event</b>
+    <br/>
+
+    <div class="color-box" style="background-color: #aea0d6;"></div>
+    <b>Partial Matched Event Span</b>
+    <br/>
+
+    <div class="color-box" style="background-color: lightgreen;"></div>
+    <b>Correct Event</b>
+    <br/>
+
+    <div class="color-box" style="background-color: #1E90FF;"></div>
+    <b>✘ : Incorrect Event Type</b>
+    <br/>
+
+    <div class="color-box" style="background-color: #1E90FF;"></div>
+    <b>★ : Incorrect Realis Status</b>
+    <br/>
+
+    <div class="color-box" style="background-color: #1E90FF;"></div>
+    <b>N/A : Realis Type Not Annotated in Gold Standard</b>
+</div>
+
+
+<div class="bar" id="main-tool-bar">
+    <input type="checkbox" name="main-tool" value="show_clusters" id="show-cluster-checkbox" onchange="onFileChange()"/>
+    Use Cluster Selectors
+</div>
+
+<div class="container">
+<div class="left hidden" id="left-cluster-div">
+    <p>Select Left Clusters (hold Ctrl/Command for multiple):</p>
+    <select name="left-cluster-selector" id="left-cluster-selector" size="10" style="width:100%" onchange="updateData()"
+            multiple>
+    </select>
+</div>
+<div class="right hidden" id="right-cluster-div">
+    <p>Select Right Clusters (hold Ctrl/Command for multiple):</p>
+    <select name="right-cluster-selector" id="right-cluster-selector" size="10" style="width:100%"
+            onchange="updateData()" multiple>
+    </select>
+</div>
+</div>
+<div class="clear"></div>
+<div class="container">
+    <div class='left-panel'>
+        <h2>Gold Standard</h2>
+        <div id='left'>
+        </div>
+    </div>
+    <div class='right-panel'>
+        <h2>System</h2>
+        <div id='right'>
+        </div>
+    </div>
+    <div class="clear"></div>
+</div>
+
+<script type="text/javascript">
+    var systemData;
+    var goldData;
+
+    var systemDataDisplay;
+    var goldDataDisplay;
+
+    var currentCorpusName;
+    var currentFileName;
+    var fileChanged;
+    var corpusChanged;
+    var coref;
+
+    //    setSelectorOptions("selector", fileList);
+    setSelectorOptions("corpus_selector", corpusList);
+
+    var leftDispatcher;
+    var rightDispatcher;
+    head.ready(function () {
+        loadDisplayData();
+        embed();
+    });
+</script>
+
+</body>
+</html>

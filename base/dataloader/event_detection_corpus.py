@@ -289,7 +289,18 @@ class EventDetectionCorpus(object):
             sentence_token = convert_to_long_tensor(
                 word_dict.convert_to_index(sentence_token_str, unk_word=Constants.UNK_WORD))
 
-            sentence_data[sent_key] = [torch.stack([sentence_token], 1), sentence_token_str]
+            # Get Sentence Feature
+            sentence_feature_list = list()
+            for f_index in range(len(INDEX_FEATURE_MAP) - 1):
+                feature_name = INDEX_FEATURE_MAP[f_index + 1]
+                feature_dict = feature_dict_list[f_index]
+                sentence_feature = [ids_data[(docid, sentid, tokenid)][feature_name]
+                                    for tokenid in valid_token_position]
+                sentence_feature = convert_to_long_tensor(
+                    feature_dict.convert_to_index(sentence_feature, unk_word=Constants.UNK_WORD))
+                sentence_feature_list += [sentence_feature]
+
+            sentence_data[sent_key] = [torch.stack([sentence_token] + sentence_feature_list, 1), sentence_token_str]
 
             for token_position, token_id in enumerate(valid_token_position):
                 candidate = ids_data[(docid, sentid, token_id)]

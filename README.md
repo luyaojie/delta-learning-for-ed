@@ -31,7 +31,8 @@ If this repository helps you, please cite this paper:
   year      = {2019},
   location  = {Florence, Italy},
   publisher = {Association for Computational Linguistics},
-  pages     = {4366--4376}
+  pages     = {4366--4376},
+  url       = {https://www.aclweb.org/anthology/P19-1429}
 }
 ```
 
